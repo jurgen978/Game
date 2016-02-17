@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.function.*;
+import java.util.Random;
 
 import org.jsfml.system.*;
 import org.jsfml.window.*;
@@ -148,6 +149,7 @@ class Test {
 	private class Image extends Actor{
 		int countX = 0;
 		int countY = 0;
+		int onCheck = 0;
 		
 		int checkY = 1;
 		int checkX = 1;
@@ -155,7 +157,9 @@ class Test {
 		int neX = 0;
 		int neY = 0;
 		
-		public Image(int x, int y, int r,int dx,int dy,String textureFile) {
+		int size = 0;
+		
+		public Image(int x, int y, int r,int size,int dx,int dy,String textureFile) {
 			//
 			// Load image/ texture
 			//
@@ -174,6 +178,7 @@ class Test {
 			this.x = x;
 			this.y = y;
 			this.r = r;
+			this.size = size;
 			this.dx = dx;
 			this.dy = dy;
 
@@ -280,9 +285,9 @@ class Test {
 			
 			//Image logo = new Image(512,150,0,0,0, "H:/My Documents/210/Test/Logo.jpg");
 			
-			Image startButton = new Image(512, 388,0,0,0, "H:/My Documents/210/Test/StartButton.jpg");
+			Image startButton = new Image(512, 388,0,0,0,0, "H:/My Documents/210/Test/StartButton.jpg");
 			
-			actors.add(new Image(512, 384,0,0,0, "H:/My Documents/210/Test/Background.jpg"));
+			actors.add(new Image(512, 384,0,0,0,0, "H:/My Documents/210/Test/Background.jpg"));
 			actors.add(startButton);
 			//actors.add(logo);
 		
@@ -325,19 +330,20 @@ class Test {
 			window.setFramerateLimit(30);
 			
 			Image[ ] things = new Image[8];
+			Random randomGenerator = new Random();
 			
-			Image sprite = new Image(545, 384,0,0,0, "H:/My Documents/210/Test/Sprite.jpg");
-			Image BackG = new Image(512, 384,0,0,0, "H:/My Documents/210/Test/Background.jpg");
-			Image borderL = new Image(128, 384,0,0,0, "H:/My Documents/210/Test/Border.jpg");
-			Image borderR = new Image(896, 384,0,0,0, "H:/My Documents/210/Test/Border.jpg");
-			things[0] = new Image(477, 75,0,0,1, "H:/My Documents/210/Test/BlockLnR.jpg");
-			things[1] = new Image(547, 175,0,0,1, "H:/My Documents/210/Test/BlockLnR.jpg");
-			things[2] = new Image(367, 275,0,0,1, "H:/My Documents/210/Test/BlockMid.jpg");
-			things[3] = new Image(658, 275,0,0,1, "H:/My Documents/210/Test/BlockMid.jpg");
-			things[4] = new Image(291, 375,0,0,1, "H:/My Documents/210/Test/BlockSmall.jpg");
-			things[5] = new Image(597, 375,0,0,1, "H:/My Documents/210/Test/BlockLArge.jpg");
-			things[6] = new Image(712, 475,0,0,1, "H:/My Documents/210/Test/BlockSmall.jpg");
-			things[7] = new Image(411, 475,0,0,1, "H:/My Documents/210/Test/BlockLArge.jpg");
+			Image sprite = new Image(545, 384,0,0,0,0, "H:/My Documents/210/Test/Sprite.jpg");
+			Image BackG = new Image(512, 384,0,0,0,0, "H:/My Documents/210/Test/Background.jpg");
+			Image borderL = new Image(128, 384,0,0,0,0, "H:/My Documents/210/Test/Border.jpg");
+			Image borderR = new Image(896, 384,0,0,0,0, "H:/My Documents/210/Test/Border.jpg");
+			things[0] = new Image(477, 75,0,70,0,1, "H:/My Documents/210/Test/BlockLnR.jpg");
+			things[1] = new Image(547, 175,0,70,0,1, "H:/My Documents/210/Test/BlockLnR.jpg");
+			things[2] = new Image(367, 275,0,70,0,1, "H:/My Documents/210/Test/BlockMid.jpg");
+			things[3] = new Image(658, 275,0,70,0,1, "H:/My Documents/210/Test/BlockMid.jpg");
+			things[4] = new Image(291, 375,0,70,0,1, "H:/My Documents/210/Test/BlockSmall.jpg");
+			things[5] = new Image(597, 375,0,70,0,1, "H:/My Documents/210/Test/BlockLArge.jpg");
+			things[6] = new Image(712, 475,0,70,0,1, "H:/My Documents/210/Test/BlockSmall.jpg");
+			things[7] = new Image(411, 475,0,70,0,1, "H:/My Documents/210/Test/BlockLArge.jpg");
 			
 			GameOver game = new GameOver();
 		
@@ -367,6 +373,9 @@ class Test {
 								actors.remove(things[i]);
 								things[i].changeY(0);
 								actors.add(things[i]);
+							}
+							if((sprite.y > (things[i].y - 30) && sprite.y < (things[i].y + 30)) && ((sprite.x > (things[i].x - things[i].size)) && (sprite.x < (things[i].x + things[i].size)))){
+								sprite.changeY(0);
 							}
 					}
 				
@@ -463,11 +472,11 @@ class Test {
 
 			window.setFramerateLimit(30);
 			
-			Image logo = new Image(512,150,0,0,0, "H:/My Documents/210/Test/Logo.png");			
-			Image startButton = new Image(512, 388,0,0,0, "H:/My Documents/210/Test/StartButton.png");
-			Image optionsButton = new Image(512, 518,0,0,0, "H:/My Documents/210/Test/OptionsButton.png");
-			Image leaderboardButton = new Image(512, 648,0,0,0, "H:/My Documents/210/Test/LeaderboardButton.png");
-			Image Background = new Image(512, 384,0,0,0, "H:/My Documents/210/Test/Background.jpg");
+			Image logo = new Image(512,150,0,0,0,0, "H:/My Documents/210/Test/Logo.png");			
+			Image startButton = new Image(512, 388,0,0,0,0, "H:/My Documents/210/Test/StartButton.png");
+			Image optionsButton = new Image(512, 518,0,0,0,0, "H:/My Documents/210/Test/OptionsButton.png");
+			Image leaderboardButton = new Image(512, 648,0,0,0,0, "H:/My Documents/210/Test/LeaderboardButton.png");
+			Image Background = new Image(512, 384,0,0,0,0, "H:/My Documents/210/Test/Background.jpg");
 						
 		
 			while (window.isOpen( )) {
