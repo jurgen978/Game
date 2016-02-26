@@ -1,589 +1,519 @@
+package Game;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.nio.file.*;
 import java.util.ArrayList;
-import java.util.function.*;
-
+import java.util.Collections;
+import static javafx.scene.paint.Color.color;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
 import org.jsfml.system.*;
 import org.jsfml.window.*;
 import org.jsfml.window.event.*;
 import org.jsfml.graphics.*;
 
-class Test {
-	private static int screenWidth  = 1024;
-	private static int screenHeight = 768;
+/**
+ * A playable demo of our game Freefall.
+ * @author 210 Group
+ */
+public class Freefall {
 
-	private static String JavaVersion = 
-		Runtime.class.getPackage( ).getImplementationVersion( );
-	private static String JdkFontPath =
-		"C:\\Program Files\\Java\\jdk" + JavaVersion +
-		"\\jre\\lib\\fonts\\";
-	private static String JreFontPath =
-		"C:\\Program Files\\Java\\jre" + JavaVersion +
-		"\\lib\\fonts\\";
+    private static final int screenWidth = 1024;
+    private static final int screenHeight = 768;
+    private static final String JavaVersion
+            = Runtime.class.getPackage().getImplementationVersion();
+    private static final String JdkFontPath
+            = "C:\\Program Files\\Java\\jdk" + JavaVersion
+            + "\\jre\\lib\\fonts\\";
+    private static final String JreFontPath
+            = "C:\\Program Files\\Java\\jre" + JavaVersion
+            + "\\lib\\fonts\\";
+    private static final int fontSize = 48;
+    private static final String FontFile = "LucidaSansRegular.ttf";
+    private static final String Title = "FreeFall";
+    private static final String Message = "Round and round...";
+    private String FontPath;
+    private final ArrayList<Actor> actors = new ArrayList<>();
 
-	private static int fontSize     = 48;
-	private static String FontFile  = "LucidaSansRegular.ttf";
-	private static String ImageFile = "team.jpg";
+    private final Texture backgroundImage, blockLnRImage, blockMidImage, blockSmallImage,
+            borderImage, leaderBoardButtonImage, logoImage, optionsButtonImage,
+            spriteImage, startButtonImage, blockLargeImage;
+    
+    private final AudioInputStream stream;
+    //Produce a clip from input stream and loop continously
+    private static void music(AudioInputStream stream) throws IOException, URISyntaxException, LineUnavailableException, UnsupportedAudioFileException {
+        AudioFormat format = stream.getFormat();
+        DataLine.Info info = new DataLine.Info(Clip.class, format);
+        Clip clip = (Clip) AudioSystem.getLine(info);
+        clip.open(stream);
+        clip.loop(Clip.LOOP_CONTINUOUSLY);
+    }
 
-	private static String Title   = "FreeFall";
-	private static String Message = "Round and round...";
+    Freefall() throws IOException, URISyntaxException, LineUnavailableException, UnsupportedAudioFileException {
+        // obtain an input stream from .wav file        
+        InputStream in = Freefall.class.getResourceAsStream("Resources/bensound-dance.wav");
+        InputStream bufferedIn = new BufferedInputStream(in);
+        // read the buffered stream into an AudioInputStream
+        stream = AudioSystem.getAudioInputStream(bufferedIn);
+        // produce clip
+        music(stream);
+        //Initialise texture
+        //Get images as input stream to load texture from
+        backgroundImage = new Texture();
+        this.backgroundImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/Background.jpg"));
+        blockLnRImage = new Texture();
+        this.blockLnRImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/BlockLnR.jpg"));
+        blockMidImage = new Texture();
+        this.blockMidImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/BlockMid.jpg"));
+        blockSmallImage = new Texture();
+        this.blockSmallImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/BlockSmall.jpg"));
+        borderImage = new Texture();
+        this.borderImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/Border.jpg"));
+        leaderBoardButtonImage = new Texture();
+        this.leaderBoardButtonImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/LeaderboardButton.png"));
+        logoImage = new Texture();
+        this.logoImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/Logo.png"));
+        optionsButtonImage = new Texture();
+        this.optionsButtonImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/OptionsButton.png"));
+        spriteImage = new Texture();
+        this.spriteImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/Sprite.png"));
+        startButtonImage = new Texture();
+        this.startButtonImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/StartButton.png"));
+        blockLargeImage = new Texture();
+        this.blockLargeImage.loadFromStream(Freefall.class.getResourceAsStream("Resources/BlockLarge.jpg"));
+    }
+    //Any in game object
+    private abstract class Actor {
 
-	private String FontPath;	// Where fonts were found
+        Transformable obj;
+        int x = 0;
+        int y = 0;
+        int r = 0;
+        int dx = 5;
+        int dy = 5;
 
-	private ArrayList<Actor> actors = new ArrayList<Actor>( );
+        boolean within(int x, int y) {
+            return false;
+        }
 
-	private abstract class Actor {
-		Transformable obj;   // Base object
+        void calcMove(int minx, int miny, int maxx, int maxy) {
+            x += dx;
+            y += dy;
+            if (x <= minx || x >= maxx) {
+                dx *= -1;
+                x += dx;
+            }
+            if (y <= miny || y >= maxy) {
+                dy *= -1;
+                y += dy;
+            }
+            for (Actor a : actors) {
+                if (a.obj != obj && a.within(x, y)) {
+                    dx *= -1;
+                    x += dx;
+                    dy *= -1;
+                    y += dy;
+                }
+            }
+        }
 
-		int x  = 0;	// Current X-coordinate
-		int y  = 0;	// Current Y-coordinate
+        void performMove() {
+            obj.rotate(r);
+            obj.setPosition(x, y);
+        }
 
-		int r  = 0;	// Change in rotation per cycle
-		int dx = 5;	// Change in X-coordinate per cycle
-		int dy = 5;	// Change in Y-coordinate per cycle
+        void draw(RenderWindow w) {
+            w.draw((Drawable) obj);
+        }
+    }
+    //Updatable text
+    private class Message extends Actor {
 
-		//
-		// Is point x, y within area occupied by this object?
-		//
-		// This should really be done with bounding boxes not points
-		// ...we should check whether any point in bounding box
-		//    is covered by this object
-		//
-		boolean within (int x, int y) {
-			// Should check object bounds here
-			// -- we'd normally assume a simple rectangle
-			//    ...and override as necessary
-			return false;
-		}
+        Text yo;
 
-		//
-		// Work out where object should be for next frame
-		//
-		void calcMove(int minx, int miny, int maxx, int maxy) {
-			//
-			// Add deltas to x and y position
-			//
-			x += dx;
-			y += dy;
+        public Message(int x, int y, int r, int dx, int dy, String message, Color c) throws IOException {
+            //load font, set style
+            Font sansRegular = new Font();
+            sansRegular.loadFromFile(Paths.get(FontPath + FontFile));
+            yo = new Text(message, sansRegular, fontSize);
+            yo.setColor(c);
+            yo.setStyle(Text.BOLD | Text.UNDERLINED);
+            //position on screen
+            FloatRect textBounds = yo.getLocalBounds();
+            yo.setOrigin(textBounds.width / 2,
+                    textBounds.height / 2);
+            this.x = x;
+            this.y = y;
+            this.dx = dx;
+            this.dy = dy;
+            this.r = r;
+            obj = yo;
+        }
+        //update message
+        public void changeMessage(String message) {
+            yo.setString(message);
+        }
+    }
 
-			//
-			// Check we've not hit screen bounds
-			// x and y would normally be the object's centre point
-			// rather than its top corner so we can more easily
-			// rotate objects and handle circular shapes
-			//
-			if (x <= minx || x >= maxx) { dx *= -1; x += dx; }
-			if (y <= miny || y >= maxy) { dy *= -1; y += dy; }
+    private class Image210 extends Actor {
 
-			//
-			// Check we've not collided with any other actor
-			//
-			for (Actor a : actors) {
-				if (a.obj != obj && a.within(x, y)) {
-					dx *= -1; x += dx;
-					dy *= -1; y += dy;
-				}
-			}
-		}
+        int countX = 0;
+        int countY = 0;
+        int checkY = 1;
+        int checkX = 1;
+        int neX = 0;
+        int neY = 0;
+        int size = 0;
+        //Any game object with a texture
+        public Image210(int x, int y, int r, int size, int dx, int dy, Texture imageFile) {
+            //load texture from inputstream
+            Texture imgTexture = imageFile;
+            imgTexture.setSmooth(true);
+            Sprite img = new Sprite(imgTexture);
+            img.setOrigin(Vector2f.div(
+                    new Vector2f(imgTexture.getSize()), 2));
+            this.x = x;
+            this.y = y;
+            this.r = r;
+            this.size = size;
+            this.dx = dx;
+            this.dy = dy;
+            obj = img;
+        }
 
-		//
-		// Rotate and reposition the object
-		//
-		void performMove( ) {
-			obj.rotate(r);
-			obj.setPosition(x,y);
-		}
+        public void changeX(int x) {
+            this.x = x;
+        }
 
-		//
-		// Render the object at its new position
-		//
-		void draw(RenderWindow w) {
-			w.draw((Drawable)obj);
-		}
-	}
+        public void changeY(int y) {
+            this.y = y;
+        }
 
-	private class Message extends Actor {
-		Text yo;
-		public Message(int x, int y, int r, int dx, int dy, String message, Color c) {
-			//
-			// Load the font
-			//
-			Font sansRegular = new Font( );
-			try {
-				sansRegular.loadFromFile(
-						Paths.get(FontPath+FontFile));
-			} catch (IOException ex) {
-				ex.printStackTrace( );
-			}
+        public void changeDy(int y) {
+            this.dy = y;
+        }
 
-			yo = new Text (message, sansRegular, fontSize);
-			yo.setColor(c);
-			yo.setStyle(Text.BOLD | Text.UNDERLINED);
+        public void changeDx(int x) {
+            this.dx = x;
+        }
+    }
 
-			FloatRect textBounds = yo.getLocalBounds( );
-			// Find middle and set as origin/ reference point
-			yo.setOrigin(textBounds.width / 2,
-					textBounds.height / 2);
+    /**
+     *
+     */
+    ArrayList scores = new ArrayList();
+    int scrCnt=0;
+    public class GameOver {
 
-			this.x = x;
-			this.y = y;
-			this.dx = dx;
-			this.dy = dy;
-			this.r = r;
+        /**
+         * Game Over Screen
+         * @param score Score obtained by player
+         * @throws TextureCreationException
+         * @throws IOException
+         */
+        public void run(int score) throws TextureCreationException, IOException {
+            Game newGame = new Game();
+            RenderWindow window = new RenderWindow();
+            window.create(new VideoMode(screenWidth, screenHeight), Title, WindowStyle.DEFAULT);
+            window.setFramerateLimit(60);
+            //Load images, add them to render window.
+            Image210 startButton = new Image210(512, 388, 0, 0, 0, 0, startButtonImage);
+            actors.add(new Image210(512, 384, 0, 0, 0, 0, backgroundImage));
+            actors.add(new Message(512, 200, 0, 0, 0, "you scored: " + String.valueOf(score), Color.WHITE));
+            actors.add(startButton);
+            if(scrCnt>=3){
+                scores.remove(2);
+                scores.add(score);
+                Collections.sort(scores, Collections.reverseOrder());
+            }
+            else {
+                scores.add(score);
+                Collections.sort(scores, Collections.reverseOrder());
+                scrCnt++;
+            }
+            actors.add(new Message(512, 500, 0, 0, 0, "Top 3 Best Scores: " + String.valueOf(scores), Color.WHITE));
+            actors.add(startButton);
+            
+            
+            while (window.isOpen()) {
+                window.clear(Color.WHITE);
+                for (Actor actor : actors) {
+                    actor.calcMove(0, 0, screenWidth, screenHeight);
+                    actor.performMove();
+                    actor.draw(window);
+                }
+                window.display();
+                for (Event event : window.pollEvents()) {
+                    if (event.type == Event.Type.CLOSED) {
+                        System.exit(0);
+                    }
+                    if (event.type == Event.Type.MOUSE_BUTTON_PRESSED) {
+                        Vector2i pos = Mouse.getPosition();
+                        if (pos.x > 750 && pos.x < 1200 && pos.y > 520 && pos.y < 630) {
+                            window.close();
+                            newGame.run();
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-			obj = yo;
-		}
-		
-		public void changeMessage(String message){
-			yo.setString(message);
-		}
-	}
+    /**
+     * Main game window.
+     */
+    public class Game {
 
-	private class Image extends Actor{
-		int countX = 0;
-		int countY = 0;
-		
-		int checkY = 1;
-		int checkX = 1;
-		
-		int neX = 0;
-		int neY = 0;
-		int size = 0;
-		
-		public Image(int x, int y, int r,int size,int dx,int dy,String textureFile) {
-			//
-			// Load image/ texture
-			//
-			Texture imgTexture = new Texture( );
-			try {
-				imgTexture.loadFromFile(Paths.get(textureFile));
-			} catch (IOException ex) {
-				ex.printStackTrace( );
-			}
-			imgTexture.setSmooth(true);
+        private boolean wCan, aCan, sCan, dCan = true;
+        private Image210[] things = new Image210[10];
+        private Image210 sprite;
+        private Message score;
+        private int calc, speed;
+        int pointff = 0;
 
-			Sprite img = new Sprite(imgTexture);
-			img.setOrigin(Vector2f.div(
-					new Vector2f(imgTexture.getSize()), 2));
+        /**
+         *  Update game objects
+         */
+        public void update() {
+            pointff++;
+            // Diffiuclty increase
+            score.changeMessage(String.valueOf(pointff));
+            if (pointff % 1000 == 0) {
+                speed++;
+                for (int i = 0; i < 10; i++) {
+                    if (speed < 5) {
+                        things[i].changeDy(speed);
+                    }
+                }
+            }
+            //Add and remove falling blocks
+            for (int i = 0; i < 10; i++) {
+                if (things[i].y > 760) {
+                    actors.remove(things[i]);
+                    things[i].changeY(0);
+                    actors.add(things[i]);
+                }
+                //if sprite is intersecting with block
+                if ((sprite.y > (things[i].y - 30) && sprite.y < (things[i].y + 30)) && ((sprite.x > (things[i].x - things[i].size)) && (sprite.x < (things[i].x + things[i].size)))) {
+                    //Move outside collision zone, disable movement in blocked direction
+                    if ((sprite.y > (things[i].y - 30) && sprite.y < (things[i].y + 30))) {
+                        calc = sprite.y - things[i].y;
+                        if (calc > 0) {
+                            wCan = false;
+                            sprite.changeY(things[i].y + 30);
+                        } else {
+                            sCan = false;
+                            sprite.changeY(things[i].y - 30);
+                        }
+                    }
+                }
+            }
+        }
 
-			this.x = x;
-			this.y = y;
-			this.r = r;
-			this.size = size;
-			this.dx = dx;
-			this.dy = dy;
+        /**
+         * Runs game window
+         * @throws TextureCreationException
+         * @throws IOException
+         */
+        public void run() throws TextureCreationException, IOException {
+            RenderWindow window = new RenderWindow();
+            window.create(new VideoMode(screenWidth, screenHeight), Title, WindowStyle.DEFAULT);
+            speed = 1;
+            int spriteSpeed = 12;
+            //Creates game objects
+            sprite = new Image210(512, 675, 0, 0, 0, 0, spriteImage);
+            Image210 backG = new Image210(512, 384, 0, 0, 0, 0, backgroundImage);
+            Image210 borderL = new Image210(128, 384, 0, 0, 0, 0, borderImage);
+            Image210 borderR = new Image210(896, 384, 0, 0, 0, 0, borderImage);
+            score = new Message(40, 50, 0, 0, 0, String.valueOf(pointff), Color.WHITE);
+            things[0] = new Image210(477, 25, 0, 221, 0, 1, blockLnRImage);
+            things[1] = new Image210(547, 125, 0, 221, 0, 1, blockLnRImage);
+            things[2] = new Image210(477, 225, 0, 221, 0, 1, blockLnRImage);
+            things[3] = new Image210(367, 625, 0, 110, 0, 1, blockMidImage);
+            things[4] = new Image210(658, 625, 0, 110, 0, 1, blockMidImage);
+            things[5] = new Image210(291, 325, 0, 60, 0, 1, blockSmallImage);
+            things[6] = new Image210(597, 325, 0, 173, 0, 1, blockLargeImage);
+            things[7] = new Image210(547, 525, 0, 221, 0, 1, blockLnRImage);
+            things[8] = new Image210(712, 425, 0, 60, 0, 1, blockSmallImage);
+            things[9] = new Image210(411, 425, 0, 173, 0, 1, blockLargeImage);
+            GameOver game = new GameOver();
+            //Adds them to window
+            actors.add(backG);
+            actors.add(sprite);
+            actors.add(borderL);
+            actors.add(borderR);
+            actors.add(score);
+            window.clear();
+            for (int i = 0; i < 10; i++) {
+                actors.add(things[i]);
+            }
+            while (window.isOpen()) {
+                while (true) {
+                    update();
+                    //Collision with game borders
+                    if (sprite.x < 260) {
+                        sprite.changeDx(0);
+                        sprite.changeX(260);
+                        aCan = false;
+                    } else {
+                        aCan = true;
+                    }
+                    if (sprite.x > 763) {
+                        sprite.changeDx(0);
+                        sprite.changeX(763);
+                        dCan = false;
+                    } else {
+                        dCan = true;
+                    }
+                    if (sprite.y < 10) {
+                        sprite.changeDy(0);
+                        sprite.changeY(10);
+                        wCan = false;
+                    } else {
+                        wCan = true;
+                    }
+                    if (sprite.y > 745) {
+                        sCan = false;
+                        window.close();
+                        game.run(pointff);
+                    } else {
+                        sCan = true;
+                    }
+                    for (Actor actor : actors) {
+                        actor.calcMove(0, 0, screenWidth, screenHeight);
+                        actor.performMove();
+                        actor.draw(window);
+                    }
+                    window.display();
+                    
+                    for (Event event : window.pollEvents()) {
+                        update();
 
-			obj = img;
-		}
+                        if (event.type == Event.Type.CLOSED) {
+                            System.exit(0);
+                        }
+                        //Directional movement controls
+                        if (event.type == Event.Type.KEY_PRESSED) {
+                            KeyEvent keyboard = event.asKeyEvent();
+                            if (keyboard.key.equals(Keyboard.Key.valueOf("W")) && wCan) {
+                                sprite.changeDy(-spriteSpeed);
+                            }
+                            if (keyboard.key.equals(Keyboard.Key.valueOf("A")) && aCan) {
+                                sprite.changeDx(-spriteSpeed);
+                            }
+                            if (keyboard.key.equals(Keyboard.Key.valueOf("D")) && dCan) {
+                                sprite.changeDx(spriteSpeed);
+                            }
+                            if (keyboard.key.equals(Keyboard.Key.valueOf("S")) && sCan) {
+                                sprite.changeDy(spriteSpeed);
+                            }
+                        }
+                        if (event.type == Event.Type.KEY_RELEASED) {
+                            KeyEvent keyboard = event.asKeyEvent();
+                            if (keyboard.key.equals(Keyboard.Key.valueOf("W")) == false) {
+                                sprite.changeDy(0);
+                            }
+                            if (keyboard.key.equals(Keyboard.Key.valueOf("A")) == false) {
+                                sprite.changeDx(0);
+                            }
+                            if (keyboard.key.equals(Keyboard.Key.valueOf("D")) == false) {
+                                sprite.changeDx(0);
+                            }
+                            if (keyboard.key.equals(Keyboard.Key.valueOf("S")) == false) {
+                                sprite.changeDy(0);
+                            }
+                        }
+                        for (Actor actor : actors) {
+                            actor.calcMove(0, 0, screenWidth, screenHeight);
+                            actor.performMove();
+                            actor.draw(window);
+                        }
+                        window.display();
+                    }
+                }
 
-		public void changeX(int x){
-			this.x = x;
-		}
-		
-		public void changeY(int y){
-			this.y = y;
-		}
-		
-		public void changeDy(int y){
-			this.dy = y;	
-		}
-		
-		public void changeDx(int x){
-			this.dx = x;
-		}
-		
-		public void reboundX(int x){
-			this.x += x;
-		}
-		
-		public void reboundY(int y){
-			this.y += y;
-		}
-	}
-	
-	private class Bubble extends Actor {
-		private int radius;
+            }
+        }
 
-		public Bubble(int x, int y, int dx, int dy, int radius, Color c,
-			int transparency) {
-			CircleShape circle = new CircleShape(radius);
-			circle.setFillColor(new Color(c, transparency));
-			circle.setOrigin(radius, radius);
-			
-			this.x = x;
-			this.y = y;
-			this.dx = dx;
-			this.dy = dy;
-			this.radius = radius;
+    }
 
-			obj = circle;
-		}
+    private class StartMenu {
 
-		//
-		// Default method typically assumes a rectangle,
-		// so do something a little different
-		//
-		@Override
-		public boolean within (int px, int py) {
-			//
-			// In this example, For simplicty...
-			// - We just treat circle as a box
-			// - x, y is the top corner rather than the centre
-			// - We use points x,y and px, py not bounding boxes
-			//
-			if (px > x && px < x + 2 * radius &&
-					py > y && py < y + 2 * radius) {
-				return true;
-			}
-			else {
-				return false;
-			}
-		}
-	}
-	
-	public class GameOver{
-		public void run(int score){
-			Game newGame = new Game();
-			RenderWindow window = new RenderWindow( );
-			window.create(new VideoMode(screenWidth, screenHeight),
-				Title,
-				WindowStyle.DEFAULT);
+        Game gameBoard = new Game();
 
-			window.setFramerateLimit(30);
-			
-			//Image logo = new Image(512,150,0,0,0, "H:/My Documents/210/Test/Logo.jpg");
-			
-			Image startButton = new Image(512, 388,0,0,0,0, "H:/My Documents/210/Test/StartButton.png");
-			
-			actors.add(new Image(512, 384,0,0,0,0, "H:/My Documents/210/Test/Background.jpg"));
-			actors.add(new Message(512,200,0,0,0,"you scored: " + String.valueOf(score),Color.WHITE));
-			actors.add(startButton);
-			//actors.add(logo);
-		
-			while (window.isOpen( )) {
-				window.clear(Color.WHITE);
+        public void run() throws TextureCreationException, IOException {
+            RenderWindow window = new RenderWindow();
+            window.create(new VideoMode(screenWidth, screenHeight), Title, WindowStyle.DEFAULT);
+            window.setFramerateLimit(60);
+            Image210 logo = new Image210(512, 150, 0, 0, 0, 0, logoImage);
+            Image210 startButton = new Image210(512, 388, 0, 0, 0, 0, startButtonImage);
+            Image210 Background = new Image210(512, 384, 0, 0, 0, 0, backgroundImage);
 
-				for (Actor actor : actors) {
-					actor.calcMove(0, 0, screenWidth, screenHeight);
-					actor.performMove( );
-					actor.draw(window);
-				}
-				window.display( );
+            while (window.isOpen()) {
+                window.clear(Color.WHITE);
+                actors.add(Background);
+                actors.add(startButton);
+                actors.add(logo);
+                for (Actor actor : actors) {
+                    actor.calcMove(0, 0, screenWidth, screenHeight);
+                    actor.performMove();
+                    actor.draw(window);
+                }
+                window.display();
+                for (Event event : window.pollEvents()) {
+                    //When window closed..
+                    if (event.type == Event.Type.CLOSED) {
+                        System.exit(0);
+                    }
+                    //Button parameters
+                    if (event.type == Event.Type.MOUSE_BUTTON_PRESSED) {
+                        Vector2i pos = Mouse.getPosition();
+                        if (pos.x > 750 && pos.x < 1200 && pos.y > 520 && pos.y < 630) {
+                            window.close();
+                            gameBoard.run();
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-				
-				for (Event event : window.pollEvents( )) {
-					if (event.type == Event.Type.CLOSED) {
-						// the user pressed the close button
-						window.close( );
-					}
-					if (event.type == Event.Type.MOUSE_BUTTON_PRESSED){
-						Vector2i pos = Mouse.getPosition();
-//						System.out.println("The user pressed the following key: " + pos.y);
-						if (pos.x > 750 && pos.x < 1200 && pos.y > 520 && pos.y < 630) {
-							window.close();
-							newGame.run();
-						}
-					}
-				}
-			}
-		}
-	}
+    /**
+     * Starts program
+     * @throws TextureCreationException
+     * @throws IOException
+     */
+    public void run() throws TextureCreationException, IOException {
+        if ((new File(JreFontPath)).exists()) {
+            FontPath = JreFontPath;
+        } else {
+            FontPath = JdkFontPath;
+        }
 
-	
-	public class Game{
-		private int calc;
-		int pointff = 0;
-		public void run(){
-			RenderWindow window = new RenderWindow( );
-			window.create(new VideoMode(screenWidth, screenHeight),
-				Title,
-				WindowStyle.DEFAULT);
+        StartMenu test = new StartMenu();
+        test.run();
+    }
 
-			window.setFramerateLimit(30);
-			
-			Image[ ] things = new Image[10];
-			
-			int speed = 1;
-			int spriteSpeed = 7;
-			
-			Image sprite = new Image(512, 675,0,0,0,0, "H:/My Documents/210/Test/Sprite.png");
-			Image BackG = new Image(512, 384,0,0,0,0, "H:/My Documents/210/Test/Background.jpg");
-			Image borderL = new Image(128, 384,0,0,0,0, "H:/My Documents/210/Test/Border.jpg");
-			Image borderR = new Image(896, 384,0,0,0,0, "H:/My Documents/210/Test/Border.jpg");
-			Message score = new Message(40,50,0,0,0,String.valueOf(pointff),Color.WHITE);
-			things[0] = new Image(477, 25,0,221,0,1, "H:/My Documents/210/Test/BlockLnR.jpg");
-			things[1] = new Image(547, 125,0,221,0,1, "H:/My Documents/210/Test/BlockLnR.jpg");
-			things[2] = new Image(477, 225,0,221,0,1, "H:/My Documents/210/Test/BlockLnR.jpg");
-			things[3] = new Image(367, 625,0,110,0,1, "H:/My Documents/210/Test/BlockMid.jpg");
-			things[4] = new Image(658, 625,0,110,0,1, "H:/My Documents/210/Test/BlockMid.jpg");
-			things[5] = new Image(291, 325,0,60,0,1, "H:/My Documents/210/Test/BlockSmall.jpg");
-			things[6] = new Image(597, 325,0,173,0,1, "H:/My Documents/210/Test/BlockLarge.jpg");
-			things[7] = new Image(547, 525,0,221,0,1, "H:/My Documents/210/Test/BlockLnR.jpg");	
-			things[8] = new Image(712, 425,0,60,0,1, "H:/My Documents/210/Test/BlockSmall.jpg");
-			things[9] = new Image(411, 425,0,173,0,1, "H:/My Documents/210/Test/BlockLarge.jpg");
-			
-			GameOver game = new GameOver();
-		
-			while (window.isOpen( )) {
-				// Clear the screen
-				window.clear();
-				actors.add(BackG);
-				actors.add(sprite);
-				actors.add(borderL);
-				actors.add(borderR);
-				actors.add(score);
-				
-				for(int i = 0; i < 10; i++){
-					actors.add(things[i]);
-				}			
-				
-
-				// Handle any event
-				while(true){
-					
-					for(int i = 0; i < 10; i++){
-						if(things[i].y > 762){
-							actors.remove(things[i]);
-							things[i].changeY(0);
-							actors.add(things[i]);
-						}
-						if((sprite.y > (things[i].y - 30) && sprite.y < (things[i].y + 30)) && ((sprite.x > (things[i].x - things[i].size)) && (sprite.x < (things[i].x + things[i].size)))){
-							if(((sprite.x > (things[i].x - things[i].size)) && (sprite.x < (things[i].x + things[i].size)))){
-								calc = sprite.x - things[i].x;
-								//right
-								if(calc > 0){
-									sprite.changeX(sprite.x + 1);
-								}else{
-									sprite.changeX(sprite.x + -1);
-								}
-							}
-							if((sprite.y > (things[i].y - 30) && sprite.y < (things[i].y + 30))){
-								calc = sprite.y - things[i].y;
-								if(calc > 0){
-									sprite.changeY(things[i].y + 30);
-								}else{
-									sprite.changeY(things[i].y - 30);
-								}
-							}
-						}	
-					}				
-					
-					if(things[0].y == 0){
-						pointff += 10;
-						speed++;
-						score.changeMessage(String.valueOf(pointff));
-						
-						for(int i = 0; i < 10; i++){
-							if(speed < 5){
-								things[i].changeDy(speed);
-							}
-						}
-						
-						if(speed%2 == 1 && speed < 8){
-							spriteSpeed += 2;
-						}
-						
-					}
-					
-					for (Actor actor : actors) {
-						actor.calcMove(0, 0, screenWidth, screenHeight);
-						actor.performMove( );
-						actor.draw(window);
-					}
-					
-				
-
-					// Update the display with any changes
-					window.display( );
-					//keyboard working code
-					for (Event event : window.pollEvents( )) {
-						if (event.type == Event.Type.CLOSED) {
-							// the user pressed the close button
-							window.close( );
-						}
-						if (event.type == Event.Type.KEY_PRESSED){
-														
-							for(int i = 0; i < 10; i++){
-								if(things[i].y > 762){
-									actors.remove(things[i]);
-									things[i].changeY(0);
-									actors.add(things[i]);
-								}
-								if((sprite.y > (things[i].y - 30) && sprite.y < (things[i].y + 30)) && ((sprite.x > (things[i].x - things[i].size)) && (sprite.x < (things[i].x + things[i].size)))){
-									if(((sprite.x > (things[i].x - things[i].size)) && (sprite.x < (things[i].x + things[i].size)))){
-										calc = sprite.x - things[i].x;
-										//right
-										if(calc > 0){
-											sprite.changeX(sprite.x + 1);
-										}else{
-											sprite.changeX(sprite.x + -1);
-										}
-									}
-									if((sprite.y > (things[i].y - 30) && sprite.y < (things[i].y + 30))){
-										calc = sprite.y - things[i].y;
-										if(calc > 0){
-											sprite.changeY(things[i].y + 30);
-										}else{
-											sprite.changeY(things[i].y - 30);
-										}
-									}
-								}									
-							}
-							
-							if(things[0].y == 0){
-								pointff += 10;
-								speed++;
-								score.changeMessage(String.valueOf(pointff));
-						
-								for(int i = 0; i < 10; i++){
-									if(speed < 5){
-										things[i].changeDy(speed);
-									}
-								}
-								
-								if(speed%2 == 0 && speed < 8){
-									spriteSpeed += 2;
-									System.out.println(spriteSpeed);
-								}
-						
-							}
-
-							KeyEvent keyboard = event.asKeyEvent();
-//							System.out.println(keyboard.key);
-							if((keyboard.key.equals(Keyboard.Key.valueOf("A")) == true) && (keyboard.key.equals(Keyboard.Key.valueOf("W")) == true)){
-								sprite.changeDx(-spriteSpeed);
-								sprite.changeDy(-spriteSpeed);
-							}else if((keyboard.key.equals(Keyboard.Key.valueOf("D")) == true) && (keyboard.key.equals(Keyboard.Key.valueOf("W")) == true)){
-								sprite.changeDy(-spriteSpeed);
-								sprite.changeDx(spriteSpeed);
-							}else if((keyboard.key.equals(Keyboard.Key.valueOf("S")) == true) && (keyboard.key.equals(Keyboard.Key.valueOf("D")) == true)){
-								sprite.changeDy(spriteSpeed);
-								sprite.changeDx(spriteSpeed);
-							}else if((keyboard.key.equals(Keyboard.Key.valueOf("S")) == true) && (keyboard.key.equals(Keyboard.Key.valueOf("A")) == true)){
-								sprite.changeDy(spriteSpeed);
-								sprite.changeDx(-spriteSpeed);
-							}else if(keyboard.key.equals(Keyboard.Key.valueOf("W")) == true){
-								sprite.changeDy(-spriteSpeed);
-							}else if(keyboard.key.equals(Keyboard.Key.valueOf("A")) == true){
-								sprite.changeDx(-spriteSpeed);
-							}else if(keyboard.key.equals(Keyboard.Key.valueOf("D")) == true){
-								sprite.changeDx(spriteSpeed);
-							}else if(keyboard.key.equals(Keyboard.Key.valueOf("S")) == true){
-								sprite.changeDy(spriteSpeed);
-							}
-//						System.out.println("The user pressed the following key: " + things[7].y);
-						}
-						
-						if (event.type == Event.Type.KEY_RELEASED){
-							sprite.changeDx(0);
-							sprite.changeDy(0);
-						}
-						
-						
-						for (Actor actor : actors) {
-							actor.calcMove(0, 0, screenWidth, screenHeight);
-							actor.performMove( );
-							actor.draw(window);
-						}
-						
-						if(sprite.x < 260){
-							sprite.reboundX(10);
-						}else if(sprite.x > 765){
-							sprite.reboundX(-10);
-						}
-						
-						if(sprite.y < 0){
-							sprite.reboundY(10);
-						}else if(sprite.y > 763){
-							window.close();
-							game.run(pointff);
-						}
-							
-						
-						window.display( );
-					}
-				}
-				
-			}
-		}
-		
-		
-		
-	}
-
-	public class StartMenu{
-		public StartMenu(){
-			
-		}
-		
-		Game gameBoard = new Game();
-		
-		public void run(){
-			RenderWindow window = new RenderWindow( );
-			window.create(new VideoMode(screenWidth, screenHeight),
-				Title,
-				WindowStyle.DEFAULT);
-
-			window.setFramerateLimit(30);
-			
-			Image logo = new Image(512,150,0,0,0,0, "H:/My Documents/210/Test/Logo.png");			
-			Image startButton = new Image(512, 388,0,0,0,0, "H:/My Documents/210/Test/StartButton.png");
-			Image optionsButton = new Image(512, 518,0,0,0,0, "H:/My Documents/210/Test/OptionsButton.png");
-			Image leaderboardButton = new Image(512, 648,0,0,0,0, "H:/My Documents/210/Test/LeaderboardButton.png");
-			Image Background = new Image(512, 384,0,0,0,0, "H:/My Documents/210/Test/Background.jpg");
-						
-		
-			while (window.isOpen( )) {
-				// Clear the screen
-				window.clear(Color.WHITE);
-				actors.add(Background);
-				actors.add(startButton);
-				actors.add(optionsButton);
-				actors.add(leaderboardButton);
-				actors.add(logo);
-
-
-				// Move all the actors around
-				for (Actor actor : actors) {
-					actor.calcMove(0, 0, screenWidth, screenHeight);
-					actor.performMove( );
-					actor.draw(window);
-				}
-
-				// Update the display with any changes
-				window.display( );
-
-				// Handle any events
-				for (Event event : window.pollEvents( )) {
-					if (event.type == Event.Type.CLOSED) {
-						// the user pressed the close button
-						window.close( );
-					}
-					if (event.type == Event.Type.MOUSE_BUTTON_PRESSED){
-						Vector2i pos = Mouse.getPosition();
-//						System.out.println("The user pressed the following key: " + pos.y);
-						if (pos.x > 750 && pos.x < 1200 && pos.y > 520 && pos.y < 630) {
-							window.close();
-							gameBoard.run();
-						}
-					}
-				}
-			}
-		}
-	}
-	
-	public void run ( ) {
-		if ((new File(JreFontPath)).exists( )) FontPath = JreFontPath;
-		else FontPath = JdkFontPath;
-		
-		StartMenu test = new StartMenu();
-		test.run();
-	}
-
-	public static void main (String args[ ]) {
-		Test t = new Test( );
-		t.run( );
-	}
+    /**
+     * Main method
+     * @param args
+     * @throws IOException
+     * @throws TextureCreationException
+     * @throws URISyntaxException
+     * @throws LineUnavailableException
+     * @throws UnsupportedAudioFileException
+     */
+    public static void main(String args[]) throws IOException, TextureCreationException, URISyntaxException, LineUnavailableException, UnsupportedAudioFileException {
+        Freefall demo = new Freefall();
+        demo.run();
+    }
 }
